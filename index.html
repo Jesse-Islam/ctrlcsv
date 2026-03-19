@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ctrlcsv | Instant Local CSV Generator</title>
+    <style>
+        :root { --bg: #020617; --card: #0f172a; --text: #f8fafc; --ui-text: #64748b; --accent: #38bdf8; }
+        
+        body { 
+            background: var(--bg); color: var(--text); 
+            font-family: 'Inter', -apple-system, system-ui, sans-serif; 
+            line-height: 1.6; margin: 0; padding: 15px;
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+        }
+
+        .container { width: 100%; max-width: 700px; box-sizing: border-box; }
+        
+        header { text-align: center; margin-bottom: 25px; padding-top: 10px; }
+        h1 { font-size: 2.2rem; letter-spacing: -1.5px; margin: 0; color: var(--accent); }
+        .tagline { color: var(--ui-text); font-size: 0.95rem; margin-top: 5px; }
+
+        /* Main Workspace */
+        .workspace { background: var(--card); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); padding: 15px; margin-bottom: 25px; }
+        
+        textarea { 
+            width: 100%; height: 200px; background: transparent; color: var(--text); 
+            border: none; font-family: 'Fira Code', monospace; font-size: 14px; 
+            resize: none; box-sizing: border-box; outline: none;
+        }
+
+        .controls { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); 
+            flex-wrap: wrap; gap: 10px;
+        }
+        
+        .detect-pill { background: rgba(56, 189, 248, 0.1); color: var(--accent); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+
+        button { 
+            background: var(--accent); color: var(--bg); border: none; 
+            padding: 12px 20px; border-radius: 10px; font-weight: 700; 
+            cursor: pointer; transition: 0.2s; -webkit-tap-highlight-color: transparent;
+        }
+        button:active { transform: scale(0.96); }
+
+        /* Info Boxes */
+        .box { margin-bottom: 20px; padding: 20px; border-radius: 16px; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.05); }
+        .mnemos-box { background: rgba(56, 189, 248, 0.03); border-color: rgba(56, 189, 248, 0.2); }
+        
+        .box h2 { font-size: 1.1rem; margin-top: 0; display: flex; align-items: center; gap: 10px; color: var(--accent); }
+        .prompt-tip { background: #1e293b; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 0.85rem; border-left: 3px solid var(--accent); margin: 10px 0; user-select: all; }
+        
+        .btn-link { color: var(--accent); text-decoration: none; font-weight: 700; border-bottom: 1px solid transparent; transition: 0.2s; }
+        .btn-link:hover { border-bottom-color: var(--accent); }
+
+        /* Footer / Blurb */
+        footer { margin-top: auto; padding: 40px 10px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); width: 100%; }
+        .dev-blurb { max-width: 500px; margin: 0 auto; color: var(--ui-text); font-size: 0.85rem; }
+        .dev-blurb b { color: var(--text); }
+
+        @media (max-width: 480px) {
+            h1 { font-size: 1.8rem; }
+            .controls { flex-direction: column; align-items: stretch; }
+            button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>ctrlcsv</h1>
+            <p class="tagline">The local, zero-leak CSV utility.</p>
+        </header>
+
+        <div class="workspace">
+            <textarea id="input" placeholder="Paste your data here..."></textarea>
+            <div class="controls">
+                <div class="detect-pill">Detected: <span id="detect">None</span></div>
+                <button onclick="saveFile()">Save to File</button>
+            </div>
+        </div>
+
+        <div class="box mnemos-box">
+            <h2>🧠 Studying with Mnemos?</h2>
+            <p><strong>Mnemos</strong> is a minimal, browser-based flashcard engine. To generate a perfectly formatted deck with AI, provide this context:</p>
+            <div class="prompt-tip">
+                "Generate flashcards as a CSV with 3 columns: Question, Answer, and Category. Use a semicolon (;) as a delimiter. Wrap math in $ or $$ for LaTeX."
+            </div>
+            <p>Paste the output above, download the CSV, and drop it into <strong><a href="https://jesse-islam.github.io/mnemos/" target="_blank" class="btn-link">Mnemos ↗</a></strong>.</p>
+        </div>
+
+        <div class="box">
+            <h2>🔒 Fully Isolated</h2>
+            <p>This tool is <b>Stateless</b>. Your data is processed entirely in your device's memory. No tracking, no cookies, and no internet access required after the first load.</p>
+        </div>
+    </div>
+
+    <footer>
+        <div class="dev-blurb">
+            <b>The Developer</b><br>
+            Built by an ML Scientist focused on creating high-utility, privacy-first tools for the research community. This tool is part of a suite of "small web" applications designed to bypass paywalls and data-harvesting platforms. 
+            <br><br>
+            <a href="https://github.com/Jesse-Islam" target="_blank" class="btn-link">GitHub</a> • 
+            <a href="https://jesse-islam.github.io/mnemos/" target="_blank" class="btn-link">Mnemos</a>
+        </div>
+    </footer>
+
+    <script>
+        const area = document.getElementById('input');
+        const detect = document.getElementById('detect');
+
+        function getDelimiter(text) {
+            if (!text || text.length < 3) return "None";
+            const line = text.split('\n')[0];
+            const options = [
+                { char: ',', name: 'Comma' },
+                { char: '\t', name: 'Tab' },
+                { char: ';', name: 'Semicolon' },
+                { char: '|', name: 'Pipe' }
+            ];
+            let best = options[0];
+            let max = -1;
+            options.forEach(opt => {
+                const count = line.split(opt.char).length;
+                if (count > max) { max = count; best = opt; }
+            });
+            return max <= 1 ? "None" : best.name;
+        }
+
+        area.addEventListener('input', () => { 
+            detect.innerText = getDelimiter(area.value); 
+        });
+
+        function saveFile() {
+            const val = area.value.trim();
+            if (!val) {
+                alert("Please paste data first.");
+                return;
+            }
+            const blob = new Blob([val], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            
+            // Standard naming with timestamp
+            const date = new Date().toISOString().slice(0,10);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `ctrlcsv_${date}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
